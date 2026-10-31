@@ -105,6 +105,36 @@ and at most 60 mm tall.
 | `0` (current) | Loose tiles. Each panel prints as separate tiles in their final positions. |
 | `0.6` (for example) | A thin base joins the panel's tiles into one rigid piece. The base fills the gaps between tiles and prints in `base_color`, so it shows in the gaps like grout. The panel's outer edge stays `gap / 2` inside the tile outlines, so panels meet with the same spacing as tiles. |
 
+### 5. Assembly trays
+
+With `trays_enabled = true`, every panel also gets a standalone **assembly
+tray**: a flat plate with a shallow pentagonal recess for each of the panel's
+tiles. Print the tray first. Then, as each batch of loose tiles comes off the
+printer, drop each tile straight into its recess.
+
+- **Outline:** the tray follows the same jagged outline as its panel, so
+  neighboring trays interlock, and each tray holds exactly the tiles of its
+  own panel.
+- **Size:** each tray is `tray_floor + tray_recess_depth` thick (2.4 mm by
+  default). Recesses are `tray_recess_depth` deep (1.2 mm).
+- **Fit:** recesses are `tray_clearance` (0.15 mm) larger than each tile on
+  every side, so tiles drop in without forcing.
+- **Walls:** the walls left between recesses are `gap − 2 × clearance` wide
+  (1.2 mm). At the seams between trays, each tray keeps a lip of
+  `gap / 2 − clearance − tray_seam_gap / 2` (0.5 mm). The console report
+  prints both widths and warns if either drops below a 0.4 mm nozzle line.
+- **Outer edge:** tiles on the outer edge of the artwork are trimmed flat, so
+  their recesses are open on that side.
+- **Label:** the panel ID (for example `c1 r1`) is debossed into the
+  underside, mirrored so it reads correctly when the tray is flipped over.
+- **Joined base:** if `panel_base_thickness > 0`, the tray gets one recess
+  shaped like the whole joined panel instead of one per tile.
+- **Visible height:** tiles sit `tray_recess_depth` into the tray, so the
+  visible part of every tile is that much shorter than its printed height.
+
+Set `preview_trays = true` to see the tiles sitting in their trays in the
+preview. Combine it with `preview_spread = 30` to see the trays separately.
+
 ---
 
 ## Using the model
