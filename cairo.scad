@@ -90,8 +90,8 @@ pla_charcoal        = "#000000";
 // ---- Preview palettes ---------------------------------------------------------
 // Background tiles and ring tiles pick from separate palettes. The default
 // uses four filaments in total, so everything fits in a single AMS unit.
-background_palette = [pla_dark_red, pla_terracotta, pla_terracotta, pla_nardo_gray];
-ring_palette       = [pla_dark_red, pla_dark_green, pla_dark_green];
+background_palette = [pla_ash_gray, pla_nardo_gray, pla_caramel];
+ring_palette       = [pla_terracotta, pla_dark_red];
 
 // Alternative: print background and ring in separate batches, swapping spools
 // between them, to get closer to the reference artwork's blues and peaches.
