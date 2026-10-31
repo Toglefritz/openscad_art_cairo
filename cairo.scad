@@ -36,6 +36,13 @@ tiling_angle   = 0;           // Rotate the pattern within the region (degrees)
 clip_to_region = true;        // true: trim edge tiles to the square region
                               // false: only keep tiles fully inside the region
 
+// ---- Ring (raised circular section) parameters ------------------------------
+ring_outer_diameter = 24 * inch;  // Outer edge of the raised ring
+ring_inner_diameter = 8 * inch;   // The "donut hole" in the middle
+ring_center         = [0, 0];     // Ring center (mm), relative to region center
+ring_height_factor  = 2;          // Ring tiles are this many times taller
+show_ring_guides    = true;       // Draw thin guide circles in the preview
+
 // Short-edge half length (in cell units) for an equilateral pentagon.
 c = (sqrt(7) - 1) / 6;
 
@@ -86,11 +93,27 @@ function pentagon(id) =
 function rot2(p, a) = [p[0] * cos(a) - p[1] * sin(a), p[0] * sin(a) + p[1] * cos(a)];
 function tile_points(id) = [for (p = pentagon(id)) rot2(p * cell, tiling_angle)];
 
-function centroid(pts) = [
-    sum_list([for (p = pts) p[0]]) / len(pts),
-    sum_list([for (p = pts) p[1]]) / len(pts),
-];
 function sum_list(v, k = 0) = k >= len(v) ? 0 : v[k] + sum_list(v, k + 1);
+
+// Area centroid of a simple polygon (shoelace formula). Unlike a plain vertex
+// average, this is the true geometric center of the tile.
+function cross_term(pts, k) =
+    let (a = pts[k], b = pts[(k + 1) % len(pts)])
+    a[0] * b[1] - b[0] * a[1];
+function polygon_area(pts) =
+    sum_list([for (k = [0 : len(pts) - 1]) cross_term(pts, k)]) / 2;
+function centroid(pts) =
+    let (A = polygon_area(pts))
+    [
+        sum_list([for (k = [0 : len(pts) - 1])
+            (pts[k][0] + pts[(k + 1) % len(pts)][0]) * cross_term(pts, k)]) / (6 * A),
+        sum_list([for (k = [0 : len(pts) - 1])
+            (pts[k][1] + pts[(k + 1) % len(pts)][1]) * cross_term(pts, k)]) / (6 * A),
+    ];
+
+// Center of a tile in mm. Uses the full (unclipped) pentagon so that edge
+// tiles are classified by where the whole pentagon sits.
+function tile_center(id) = centroid(tile_points(id));
 
 // =============================================================================
 // Tile selection
@@ -121,6 +144,28 @@ tile_ids = [
 echo(str("Tile count: ", len(tile_ids)));
 
 // =============================================================================
+// Ring classification and tile heights
+// =============================================================================
+
+ring_r_outer = ring_outer_diameter / 2;
+ring_r_inner = ring_inner_diameter / 2;
+
+// Distance from the ring center to the center of a tile.
+function ring_distance(id) = norm(tile_center(id) - ring_center);
+
+// True if the tile's center falls between the inner and outer circles.
+function in_ring(id) =
+    let (d = ring_distance(id))
+    d >= ring_r_inner && d <= ring_r_outer;
+
+// Height of each tile. This is the single place to add more detail later
+// (gradients, steps, sweeps, etc.).
+function tile_height(id) =
+    in_ring(id) ? tile_thickness * ring_height_factor : tile_thickness;
+
+echo(str("Ring tile count: ", len([for (id = tile_ids) if (in_ring(id)) 1])));
+
+// =============================================================================
 // Rendering
 // =============================================================================
 
@@ -145,7 +190,19 @@ function tile_color(k) =
 // The full flat tiling.
 module cairo_tiling() {
     for (k = [0 : len(tile_ids) - 1])
-        color(tile_color(k)) tile(tile_ids[k]);
+        color(tile_color(k)) tile(tile_ids[k], tile_height(tile_ids[k]));
+}
+
+// Thin guide circles marking the ring boundaries, for preview only.
+module ring_guides(width = 2) {
+    color("black")
+        translate([ring_center[0], ring_center[1], 0])
+            linear_extrude(height = tile_thickness * ring_height_factor + 1)
+                for (r = [ring_r_inner, ring_r_outer])
+                    difference() {
+                        circle(r = r + width / 2, $fn = 180);
+                        circle(r = r - width / 2, $fn = 180);
+                    }
 }
 
 // Thin backing board outline, for reference only.
@@ -158,3 +215,4 @@ module backing_board() {
 
 backing_board();
 cairo_tiling();
+if (show_ring_guides) %ring_guides();
