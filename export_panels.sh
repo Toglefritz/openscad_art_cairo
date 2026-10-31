@@ -5,9 +5,12 @@
 #   export/panel_c<col>_r<row>/panel_c<col>_r<row>_<filament>.stl
 #
 # Each folder holds all the parts of one panel, sharing one coordinate frame.
-# In Bambu Studio, select every STL in a folder and drag them in together, then
-# answer "Yes" to loading them as a single object with multiple parts. Assign
-# a filament to each part and slice.
+# In Bambu Studio, select every tile STL in a folder and drag them in together,
+# then answer "Yes" to loading them as a single object with multiple parts.
+# Assign a filament to each part and slice.
+#
+# When trays_enabled is true, each folder also gets panel_c<col>_r<row>_tray.stl,
+# a standalone assembly tray that is printed on its own.
 #
 # Usage: ./export_panels.sh [scad_file] [output_dir]
 # Set OPENSCAD to override the OpenSCAD binary location.
@@ -43,11 +46,16 @@ while read -r col row key name; do
     mkdir -p "$dir"
     file="$dir/panel_c${col}_r${row}_${name}.stl"
     echo "Exporting $file"
+    if [[ "$key" == "tray" ]]; then
+        # Standalone assembly tray, printed on its own before the tiles.
+        part_args=(-D 'part="tray"')
+    else
+        part_args=(-D 'part="panel"' -D "export_color=\"${key}\"")
+    fi
     "$OPENSCAD" \
-        -D 'part="panel"' \
+        "${part_args[@]}" \
         -D "panel_col=${col}" \
         -D "panel_row=${row}" \
-        -D "export_color=\"${key}\"" \
         -o "$file" "$SCAD" 2>/dev/null
     count=$((count + 1))
 done < <(sed -n 's/^ECHO: "EXPORT_PART \(.*\)"$/\1/p' "$info")

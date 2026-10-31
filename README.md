@@ -117,6 +117,7 @@ The `part` variable selects what OpenSCAD produces:
 |---|---|
 | `"preview"` | The full assembled artwork with a reference backing board. Set `preview_spread = 25` to pull the panels apart and see the split. Set `show_ring_guides = true` to draw the ring boundaries. |
 | `"panel"` | One panel, centered on the origin, chosen by `panel_col` and `panel_row`. `export_color` limits it to one filament (`"all"`, `"base"`, or a hex code). |
+| `"tray"` | The assembly tray for one panel, centered on the origin, chosen by `panel_col` and `panel_row`. |
 | `"info"` | No geometry. Prints the panel report and the export list. |
 
 Panels are numbered from the bottom-left: `c0_r0` is the bottom-left panel and
@@ -161,9 +162,11 @@ The script:
    `export/panel_info.echo`.
 2. Prints the panel report. It stops if any panel is too large for the bed.
 3. Reads the `EXPORT_PART <col> <row> <hex> <name>` lines. Each line is one
-   panel/color combination that actually has tiles, plus a `base` part when
-   `panel_base_thickness > 0`.
-4. Exports each combination in `panel` mode as its own STL:
+   panel/color combination that actually has tiles. It also adds a `base`
+   part when `panel_base_thickness > 0` and a `tray` part when
+   `trays_enabled = true`.
+4. Exports each tile color and base in `panel` mode, and each tray in `tray`
+   mode, as its own STL:
 
 ```
 export/
@@ -172,12 +175,13 @@ export/
     panel_c0_r0_dark_red.stl
     panel_c0_r0_nardo_gray.stl
     panel_c0_r0_terracotta.stl
+    panel_c0_r0_tray.stl
   panel_c1_r0/
     ...
 ```
 
-With the current settings this produces 62 STLs, which takes about a minute
-and a half. Re-run the script after any change to the model. Old files are
+With the current settings this produces 78 STLs (62 tile files and 16 trays),
+which takes about a minute and a half. Re-run the script after any change to the model. Old files are
 overwritten, but files for color/panel combinations that no longer exist are
 not removed, so clear `export/` first if you change palettes.
 
@@ -200,11 +204,29 @@ $OPENSCAD -D 'part="panel"' -D panel_col=1 -D panel_row=2 \
 
 ## Printing on a Bambu Lab P1S
 
-### Load a panel
+### Print the tray first
+
+Each `panel_cX_rY_tray.stl` is a separate print. Load it on its own, in any
+single filament (`tray_color` suggests Nardo Gray), and print it before that
+panel's tiles.
+
+| Setting | Suggestion |
+|---|---|
+| Layer height | 0.2 mm (the 1.2 mm floor and 1.2 mm recesses are 6 layers each) |
+| Walls | 2 or more, with *Detect thin wall* enabled so the 0.5 mm seam lips print |
+| Top / bottom layers | 4 or more, so the recess floors are solid |
+| Orientation | Flat, label side down, as exported |
+
+Each tray is about 215 × 215 × 2.4 mm. Check the first tray by dropping in a
+test tile. If tiles are too tight, increase `tray_clearance`. If they rattle,
+reduce it. Then re-export.
+
+### Load a panel's tiles
 
 1. Open Bambu Studio and start a new project.
-2. Select **all** the STLs in one panel folder (for example
-   `export/panel_c1_r1/`) and drag them onto the plate together.
+2. Select all the **tile** STLs in one panel folder (every file except
+   `_tray.stl`, for example in `export/panel_c1_r1/`) and drag them onto the
+   plate together.
 3. When Bambu Studio asks whether to load the files as a single object with
    multiple parts, choose **Yes**. This keeps every tile in its correct
    position.
@@ -253,9 +275,11 @@ tiles of a panel must print together on one multi-color plate.
 With loose tiles, each panel is a few dozen separate pieces. To keep them in
 order:
 
-- Print and assemble one panel at a time. Leave the tiles on the plate, or
-  slide them off together onto a tray, until they are glued.
-- Mark the panel ID (`c1_r1`) on the backing board in pencil before gluing.
+- Print the panel's assembly tray first. As each batch of tiles comes off
+  the plate, place every tile straight into its matching recess. A finished
+  tray is a complete, ready-to-glue panel.
+- The panel ID is debossed on the underside of each tray. Also mark it on
+  the backing board in pencil before gluing.
 - The preview with `preview_spread = 25` makes a handy assembly map. Screenshot
   it from the top view (View → Top, orthographic).
 
@@ -290,10 +314,13 @@ numbers run bottom to top.
 1. Cut a 30 × 30 inch backing board (¼" MDF or plywood works well) and paint
    it a dark neutral. It will show through the gaps between tiles.
 2. Draw a center mark and a 4 × 4 reference grid of 7.5" squares.
-3. Start with a center panel and work outward. Panel edges interlock, so each
-   new panel locks against the ones already placed.
-4. Glue tiles down with a thin layer of construction adhesive or CA glue.
-   Keep the 1.5 mm `gap` between tiles and between panels consistent.
+3. Glue each tile into its recess in the assembly tray with a small drop of CA
+   glue, so each tray becomes one rigid panel.
+4. Start with a center panel and work outward. Glue each tray to the backing
+   board with construction adhesive. Tray edges interlock, so each new tray
+   locks against the ones already placed, and the tiles keep a consistent
+   1.5 mm `gap`. Without trays, glue tiles straight to the board and keep the
+   gap even by eye.
 5. Let it cure flat, then frame. The tallest tiles are about 60 mm (2⅜"), so
    use a shadow box frame with at least 2½" of interior depth.
 
@@ -321,7 +348,14 @@ numbers run bottom to top.
 | `panels_x` / `panels_y` | 4 / 4 | Panel grid |
 | `panel_base_thickness` | 0 | Joining base under each panel (0 = loose tiles) |
 | `base_color` | Nardo Gray | Filament for the joining base |
-| `part` | `"preview"` | `"preview"`, `"panel"`, or `"info"` |
+| `trays_enabled` | `true` | Export an assembly tray for every panel |
+| `tray_floor` / `tray_recess_depth` | 1.2 / 1.2 mm | Tray plate thickness under the recesses, and recess depth |
+| `tray_clearance` | 0.15 mm | Extra room around each tile in its recess |
+| `tray_seam_gap` | 0.2 mm | Gap between neighboring trays |
+| `tray_color` | Nardo Gray | Preview color and suggested tray filament |
+| `tray_label` / `tray_label_size` / `tray_label_depth` | `true` / 14 / 0.4 mm | Panel ID debossed on the tray underside |
+| `preview_trays` | `false` | Shows the tiles sitting in their trays in the preview |
+| `part` | `"preview"` | `"preview"`, `"panel"`, `"tray"`, or `"info"` |
 | `panel_col` / `panel_row` / `export_color` | 0 / 0 / `"all"` | Panel export selection |
 | `preview_spread` | 0 | Pulls panels apart in the preview |
 | `show_ring_guides` | `false` | Draws the ring boundary circles in the preview |
