@@ -40,16 +40,22 @@ clip_to_region = true;        // true: trim edge tiles to the square region
 ring_outer_diameter = 24 * inch;  // Outer edge of the raised ring
 ring_inner_diameter = 8 * inch;   // The "donut hole" in the middle
 ring_center         = [0, 0];     // Ring center (mm), relative to region center
-show_ring_guides    = true;       // Draw thin guide circles in the preview
+show_ring_guides    = false;       // Draw thin guide circles in the preview
 
 // Ring tile heights sweep around the ring center. Starting at
 // `ring_start_angle`, heights grow from `ring_height_start_factor` to
 // `ring_height_end_factor` (multiples of tile_thickness) over one full turn.
 // Angles use the standard math convention: 0 = 3:00, 90 = 12:00, 180 = 9:00.
 ring_height_start_factor = 2;     // Height factor at the start angle (9:00)
-ring_height_end_factor   = 6;     // Height factor just before returning to start
+ring_height_end_factor   = 10;     // Height factor just before returning to start
 ring_start_angle         = 180;   // Where the sweep starts (180 = 9:00)
 ring_clockwise           = true;  // Direction the heights increase
+
+// Ring tile side walls taper inward (draft) following the same sweep. The
+// draft angle is measured from vertical: 0 = straight walls, larger values
+// make the top face smaller than the base. Background tiles have no draft.
+ring_draft_start_angle = 0;       // Draft angle at the start angle (degrees)
+ring_draft_end_angle   = 5;      // Draft angle just before returning to start
 
 // Short-edge half length (in cell units) for an equilateral pentagon.
 c = (sqrt(7) - 1) / 6;
@@ -188,9 +194,24 @@ function ring_height_factor(id) =
 function tile_height(id) =
     in_ring(id) ? tile_thickness * ring_height_factor(id) : tile_thickness;
 
+// Draft angle for a ring tile, interpolated linearly around the ring.
+function ring_draft_angle(id) =
+    ring_draft_start_angle
+        + (ring_draft_end_angle - ring_draft_start_angle) * ring_sweep(id);
+
+// Draft angle of each tile (degrees from vertical).
+function tile_draft(id) = in_ring(id) ? ring_draft_angle(id) : 0;
+
+// Horizontal distance each side wall moves inward from base to top.
+function tile_inset(id) = tile_height(id) * tan(tile_draft(id));
+
 ring_heights = [for (id = tile_ids) if (in_ring(id)) tile_height(id)];
+ring_drafts  = [for (id = tile_ids) if (in_ring(id)) tile_draft(id)];
+ring_insets  = [for (id = tile_ids) if (in_ring(id)) tile_inset(id)];
 echo(str("Ring tile count: ", len(ring_heights),
          ", height range: ", min(ring_heights), " to ", max(ring_heights), " mm"));
+echo(str("Ring draft range: ", min(ring_drafts), " to ", max(ring_drafts),
+         " deg, max top inset: ", max(ring_insets), " mm"));
 
 // =============================================================================
 // Rendering
@@ -205,9 +226,23 @@ module tile_2d(id) {
     }
 }
 
-// A single flat tile.
-module tile(id, height = tile_thickness) {
-    linear_extrude(height = height) tile_2d(id);
+// A single tile. With a draft angle, the top face is the base outline offset
+// inward by height * tan(draft), and the solid is the hull of base and top.
+// Every tile outline is convex (a pentagon, possibly clipped by the square),
+// so the hull gives exact planar, evenly tapered side walls.
+module tile(id, height = tile_thickness, draft = 0) {
+    inset = height * tan(draft);
+    eps   = 0.01;
+    if (inset <= 0) {
+        linear_extrude(height = height) tile_2d(id);
+    } else {
+        hull() {
+            linear_extrude(height = eps) tile_2d(id);
+            translate([0, 0, height - eps])
+                linear_extrude(height = eps)
+                    offset(delta = -inset) tile_2d(id);
+        }
+    }
 }
 
 // Deterministic preview color per tile.
@@ -217,7 +252,8 @@ function tile_color(k) =
 // The full flat tiling.
 module cairo_tiling() {
     for (k = [0 : len(tile_ids) - 1])
-        color(tile_color(k)) tile(tile_ids[k], tile_height(tile_ids[k]));
+        color(tile_color(k))
+            tile(tile_ids[k], tile_height(tile_ids[k]), tile_draft(tile_ids[k]));
 }
 
 // Thin guide circles marking the ring boundaries, for preview only.
