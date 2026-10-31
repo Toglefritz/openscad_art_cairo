@@ -40,8 +40,16 @@ clip_to_region = true;        // true: trim edge tiles to the square region
 ring_outer_diameter = 24 * inch;  // Outer edge of the raised ring
 ring_inner_diameter = 8 * inch;   // The "donut hole" in the middle
 ring_center         = [0, 0];     // Ring center (mm), relative to region center
-ring_height_factor  = 2;          // Ring tiles are this many times taller
 show_ring_guides    = true;       // Draw thin guide circles in the preview
+
+// Ring tile heights sweep around the ring center. Starting at
+// `ring_start_angle`, heights grow from `ring_height_start_factor` to
+// `ring_height_end_factor` (multiples of tile_thickness) over one full turn.
+// Angles use the standard math convention: 0 = 3:00, 90 = 12:00, 180 = 9:00.
+ring_height_start_factor = 2;     // Height factor at the start angle (9:00)
+ring_height_end_factor   = 6;     // Height factor just before returning to start
+ring_start_angle         = 180;   // Where the sweep starts (180 = 9:00)
+ring_clockwise           = true;  // Direction the heights increase
 
 // Short-edge half length (in cell units) for an equilateral pentagon.
 c = (sqrt(7) - 1) / 6;
@@ -158,12 +166,31 @@ function in_ring(id) =
     let (d = ring_distance(id))
     d >= ring_r_inner && d <= ring_r_outer;
 
-// Height of each tile. This is the single place to add more detail later
-// (gradients, steps, sweeps, etc.).
-function tile_height(id) =
-    in_ring(id) ? tile_thickness * ring_height_factor : tile_thickness;
+// Angle of a tile's center about the ring center (degrees, -180..180).
+function ring_angle(id) =
+    let (v = tile_center(id) - ring_center)
+    atan2(v[1], v[0]);
 
-echo(str("Ring tile count: ", len([for (id = tile_ids) if (in_ring(id)) 1])));
+// Fraction of a full turn (0..1) traveled from the start angle to the tile,
+// measured in the sweep direction. 0 at the start, approaching 1 just before it.
+function ring_sweep(id) =
+    let (delta = ring_clockwise
+                     ? ring_start_angle - ring_angle(id)
+                     : ring_angle(id) - ring_start_angle)
+    pmod(delta, 360) / 360;
+
+// Height multiplier for a ring tile, interpolated linearly around the ring.
+function ring_height_factor(id) =
+    ring_height_start_factor
+        + (ring_height_end_factor - ring_height_start_factor) * ring_sweep(id);
+
+// Height of each tile. This is the single place to add more detail later.
+function tile_height(id) =
+    in_ring(id) ? tile_thickness * ring_height_factor(id) : tile_thickness;
+
+ring_heights = [for (id = tile_ids) if (in_ring(id)) tile_height(id)];
+echo(str("Ring tile count: ", len(ring_heights),
+         ", height range: ", min(ring_heights), " to ", max(ring_heights), " mm"));
 
 // =============================================================================
 // Rendering
@@ -197,7 +224,8 @@ module cairo_tiling() {
 module ring_guides(width = 2) {
     color("black")
         translate([ring_center[0], ring_center[1], 0])
-            linear_extrude(height = tile_thickness * ring_height_factor + 1)
+            linear_extrude(height = tile_thickness
+                                    * max(ring_height_start_factor, ring_height_end_factor) + 1)
                 for (r = [ring_r_inner, ring_r_outer])
                     difference() {
                         circle(r = r + width / 2, $fn = 180);
