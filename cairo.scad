@@ -60,13 +60,44 @@ ring_draft_end_angle   = 5;      // Draft angle just before returning to start
 // Short-edge half length (in cell units) for an equilateral pentagon.
 c = (sqrt(7) - 1) / 6;
 
-// Preview palette, loosely matched to the reference artwork.
-palette = [
-    "#E2533F",   // red
-    "#C96F55",   // terracotta
-    "#9A9EA3",   // gray
-    "#7C9FB5",   // dusty blue
-];
+// ---- Filament colors (Bambu Lab PLA Matte hex codes) -------------------------
+pla_ivory_white     = "#FFFFFF";
+pla_bone_white      = "#CBC6B8";
+pla_desert_tan      = "#E8DBB7";
+pla_latte_brown     = "#D3B7A7";
+pla_caramel         = "#AE835B";
+pla_terracotta      = "#B15533";
+pla_dark_brown      = "#7D6556";
+pla_dark_chocolate  = "#4D3324";
+pla_lilac_purple    = "#AE96D4";
+pla_sakura_pink     = "#E8AFCF";
+pla_mandarin_orange = "#F99963";
+pla_lemon_yellow    = "#F7D959";
+pla_plum            = "#950051";
+pla_scarlet_red     = "#DE4343";
+pla_dark_red        = "#BB3D43";
+pla_dark_green      = "#68724D";
+pla_grass_green     = "#61C680";
+pla_apple_green     = "#C2E189";
+pla_ice_blue        = "#A3D8E1";
+pla_sky_blue        = "#56B7E6";
+pla_marine_blue     = "#0078BF";
+pla_dark_blue       = "#042F56";
+pla_ash_gray        = "#9B9EA0";
+pla_nardo_gray      = "#757575";
+
+// ---- Preview palettes ---------------------------------------------------------
+// Background tiles and ring tiles pick from separate palettes. The default
+// uses four filaments in total, so everything fits in a single AMS unit.
+background_palette = [pla_dark_red, pla_terracotta, pla_terracotta, pla_nardo_gray];
+ring_palette       = [pla_dark_red, pla_dark_green, pla_dark_green];
+
+// Alternative: print background and ring in separate batches, swapping spools
+// between them, to get closer to the reference artwork's blues and peaches.
+// background_palette = [pla_scarlet_red, pla_ash_gray, pla_ice_blue];
+// ring_palette       = [pla_terracotta, pla_dark_green, pla_scarlet_red, pla_latte_brown];
+
+// Repeat an entry in a palette to make that color appear more often.
 color_seed = 42;
 
 // =============================================================================
@@ -245,14 +276,19 @@ module tile(id, height = tile_thickness, draft = 0) {
     }
 }
 
-// Deterministic preview color per tile.
-function tile_color(k) =
-    palette[floor(rands(0, len(palette), 1, color_seed + k)[0]) % len(palette)];
+// Deterministic pick from a palette for tile number k.
+function pick_color(pal, k) =
+    pal[floor(rands(0, len(pal), 1, color_seed + k)[0]) % len(pal)];
+
+// Preview color per tile: ring tiles use ring_palette, the rest use
+// background_palette.
+function tile_color(id, k) =
+    pick_color(in_ring(id) ? ring_palette : background_palette, k);
 
 // The full flat tiling.
 module cairo_tiling() {
     for (k = [0 : len(tile_ids) - 1])
-        color(tile_color(k))
+        color(tile_color(tile_ids[k], k))
             tile(tile_ids[k], tile_height(tile_ids[k]), tile_draft(tile_ids[k]));
 }
 
