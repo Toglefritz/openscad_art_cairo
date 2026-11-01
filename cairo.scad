@@ -565,7 +565,7 @@ if (part == "preview") {
     // A single panel's assembly tray, centered on the origin for export.
     c0 = panel_center(panel_col, panel_row);
     translate([-c0[0], -c0[1], 0])
-        tray(panel_col, panel_row);
+        color(tray_color) tray(panel_col, panel_row);
 } else if (part == "info") {
     panel_report();
     export_manifest();

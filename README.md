@@ -10,6 +10,9 @@ Bambu Lab P1S with an AMS.
 |---|---|
 | `cairo.scad` | The parametric model: tiling, ring, colors, panels, and export modes |
 | `export_panels.sh` | Batch exports every panel as one STL per filament color |
+| `docs/images/` | Rendered documentation images |
+| `docs/render_images.sh` | Re-renders everything in `docs/images/` from the current models |
+| `learn/01_cairo_tiling.scad` | Standalone 2D version of the tiling algorithm, with overlays showing how the pentagons and hexagons are built from square cells |
 | `export/` | Output of `export_panels.sh` |
 
 Tested with OpenSCAD 2021.01 on macOS.
