@@ -64,7 +64,7 @@ show_tiles          = true;   // The pentagons themselves
 show_cells          = true;   // Outline the square lattice cells
 show_short_edges    = true;   // Highlight each cell's short edge
 show_lattice_points = true;   // Dots where four pentagons meet
-show_labels         = false;  // Label each cell with its [i, j] index
+show_labels         = true;  // Label each cell with its [i, j] index
 
 // How pentagons are colored:
 //   "orientation" - by hexagon direction: horizontal vs vertical hexagons
@@ -75,7 +75,7 @@ color_mode = "orientation";
 
 // Highlight one cell and the hexagon built on it, for example [2, 3].
 // Cells are numbered from 0 at the bottom-left. [-1, -1] turns this off.
-focus_cell = [2, 2];
+focus_cell = [-1, -1];
 
 // ---- Appearance -------------------------------------------------------------
 line_width        = 1.2;        // Width of overlay lines (mm)

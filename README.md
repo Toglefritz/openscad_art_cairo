@@ -4,7 +4,9 @@ A 30 × 30 inch relief artwork built from a Cairo pentagonal tiling. A raised
 ring in the middle of the piece spirals upward: its tiles grow taller and taper
 more steeply as they travel clockwise around the center, starting at the 9:00
 position. The model is written in OpenSCAD and split into panels sized for a
-Bambu Lab P1S with an AMS.
+Bambu Lab P1S, optionally with an AMS.
+
+![The full artwork rendered in OpenSCAD](docs/images/artwork_angle.png)
 
 | File | Purpose |
 |---|---|
@@ -30,16 +32,40 @@ The tiling is built on a square lattice of points spaced `cell` apart:
    horizontal or vertical in a checkerboard pattern.
 3. Each end of a short edge is joined to the two nearest lattice corners.
 
+| Steps 1 and 2: cells, lattice points, and short edges | Step 3: the finished tiling |
+|---|---|
+| ![Square cells with lattice points and checkerboard short edges](docs/images/tiling_construction.png) | ![The resulting pentagon tiling](docs/images/tiling_pentagons.png) |
+
 This gives exactly one pentagon across every lattice edge, which is two
 pentagons per lattice square. Pairs of pentagons that share a short edge form
-the alternating "basket weave" hexagons the Cairo tiling is known for. The
-short edge half-length is `c = (√7 − 1) / 6` cell units, so all five sides of
-every pentagon are equal.
+the alternating "basket weave" hexagons the Cairo tiling is known for.
+
+In the image below, red hexagons come from cells with a horizontal short edge
+and gray ones from cells with a vertical short edge. The highlighted cell shows
+how a hexagon is anchored on its cell. Four of the hexagon's six corners are
+the cell's corners, the short edge splits it into its two pentagons, and the
+last two corners poke out into the neighboring cells.
+
+![Horizontal and vertical hexagons over the cell grid, with one cell and its hexagon highlighted](docs/images/tiling_cells_focus.png)
+
+The short edge half-length is `c = (√7 − 1) / 6` cell units, so all five sides
+of every pentagon are equal. Other values of `c` still tile the plane but give
+different shapes. A short edge near zero turns the pentagons into tilted
+squares:
+
+<img src="docs/images/tiling_short_c.png" alt="Tiling with a very short short edge" width="420">
 
 Each tile has an ID `[i, j, dir]`: a lattice point plus a direction (0 =
 vertical edge, 1 = horizontal edge). The functions `pentagon(id)`,
 `tile_points(id)` and `tile_center(id)` turn an ID into geometry.
 `tile_center` uses the true area centroid, not a plain average of the corners.
+Here each hexagon has its own color and is labeled with the `[i, j]` of the
+cell it belongs to:
+
+![Hexagons colored individually and labeled with their cell indices](docs/images/tiling_hexagons_labeled.png)
+
+To explore the tiling interactively, open `learn/01_cairo_tiling.scad`. It
+contains just this algorithm, with settings for every overlay shown here.
 
 The pattern is centered on a lattice point, so it is symmetric about the middle
 of the artwork. Tiles that cross the outer edge are trimmed to the 30" square
@@ -49,6 +75,12 @@ of the artwork. Tiles that cross the outer edge are trimmed to the 30" square
 
 A tile belongs to the ring when its center lies between
 `ring_inner_diameter` and `ring_outer_diameter`, measured from `ring_center`.
+Tiles that straddle a circle are in or out depending on which side their
+center falls:
+
+| The flat tiling | Ring boundaries (`show_ring_guides = true`) |
+|---|---|
+| ![Front view of the artwork](docs/images/artwork_top.png) | ![Inner and outer ring circles drawn over the tiling](docs/images/artwork_ring_guides.png) |
 
 Each ring tile gets a sweep value from 0 to 1. It is 0 at `ring_start_angle`
 (180° = 9:00) and rises in the `ring_clockwise` direction until it nearly
@@ -61,7 +93,10 @@ sweep, interpolated linearly:
 | Draft angle (degrees from vertical) | `ring_draft_start_angle` → `ring_draft_end_angle` | 0° → 5° |
 
 The sweep produces a sharp step at 9:00, where the tallest tiles sit right
-next to the shortest.
+next to the shortest. This low view looks along the step, with the tallest,
+most tapered tiles in front and the shortest tiles just behind them:
+
+![Low view along the step at the 9:00 position](docs/images/artwork_step.png)
 
 Drafted tiles are made as the hull of the base outline and a smaller top
 outline. The top is inset by `height × tan(draft)`. Every tile outline is
@@ -69,7 +104,6 @@ convex, so all five walls taper evenly. Background tiles are always
 `tile_thickness` tall with straight walls.
 
 All height and draft logic lives in `tile_height(id)` and `tile_draft(id)`.
-Those are the places to add more detail later.
 
 ### 3. Colors
 
@@ -101,6 +135,10 @@ so panel edges follow the tile outlines and neighboring panels interlock like
 puzzle pieces. With the defaults, every panel is between 203 and 215 mm square
 and at most 60 mm tall.
 
+| The 4 × 4 split (`preview_spread = 25`) | One panel, as exported (`c1_r1`) |
+|---|---|
+| ![The artwork split into 16 interlocking panels](docs/images/artwork_panels_spread.png) | ![The tiles of panel c1_r1](docs/images/panel_c1_r1.png) |
+
 `panel_base_thickness` controls how the tiles in a panel are held together:
 
 | Value | Result |
@@ -114,6 +152,10 @@ With `trays_enabled = true`, every panel also gets a standalone **assembly
 tray**: a flat plate with a shallow pentagonal recess for each of the panel's
 tiles. Print the tray first. Then, as each batch of loose tiles comes off the
 printer, drop each tile straight into its recess.
+
+| Top: one recess per tile | Angled: shallow recesses | Underside: debossed panel ID |
+|---|---|---|
+| ![Tray for panel c1_r1 from above](docs/images/tray_c1_r1_top.png) | ![Tray for panel c1_r1 at an angle](docs/images/tray_c1_r1_angle.png) | ![Underside of the tray showing the c1 r1 label](docs/images/tray_c1_r1_bottom.png) |
 
 - **Outline:** the tray follows the same jagged outline as its panel, so
   neighboring trays interlock, and each tray holds exactly the tiles of its
@@ -136,7 +178,9 @@ printer, drop each tile straight into its recess.
   visible part of every tile is that much shorter than its printed height.
 
 Set `preview_trays = true` to see the tiles sitting in their trays in the
-preview. Combine it with `preview_spread = 30` to see the trays separately.
+preview. Combine it with `preview_spread` to see the trays separately:
+
+![Every panel's tiles sitting in their trays, pulled apart](docs/images/artwork_trays_spread.png)
 
 ---
 
@@ -273,7 +317,7 @@ reduce it. Then re-export.
 | Setting | Suggestion |
 |---|---|
 | Filament | Bambu PLA Matte, in the colors from the palettes |
-| Plate | Textured PEI. It holds small tile footprints well, and the textured bottom does not show once glued. |
+| Plate | Textured PEI. It holds small tile footprints well, and the textured bottom does not show once glued. Additionally, the texture helps form a strong glue bond. |
 | Layer height | 0.2 mm |
 | Walls / infill | 3 walls, 10 to 15% infill. The tiles are decorative, not structural. |
 | Supports | None. Background tiles are flat and ring tiles taper inward. |
